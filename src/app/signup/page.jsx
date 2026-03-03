@@ -15,12 +15,12 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const API_BASE = "https://solace-2.onrender.com"; // ✅ Deployed backend URL
+  const API_BASE = "https://solace-2.onrender.com"; // Deployed backend
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Frontend validation (UNCHANGED)
+    // Frontend validation
     const newErrors = {};
     if (!name.trim()) newErrors.name = "Please enter your name";
     if (!email.trim()) newErrors.email = "Please enter your email";
@@ -55,14 +55,9 @@ export default function SignUp() {
         return;
       }
 
-      // OPTIONAL: auto-login after signup
-      if (data.access) {
-        localStorage.setItem("access", data.access);
-        localStorage.setItem("refresh", data.refresh);
-      }
+      // ✅ Redirect to login instead of dashboard to prevent loop
+      router.push("/login");
 
-      // Redirect (YOUR LOGIC)
-      router.push("/dashboard");
     } catch (err) {
       setErrors({ form: "Network error. Try again later." });
     } finally {
