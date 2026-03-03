@@ -49,7 +49,7 @@ export default function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrors({ 
+        setErrors({
           form: data.detail || "Invalid email or password",
         });
         setLoading(false);
@@ -59,6 +59,9 @@ export default function Login() {
       // ✅ Save JWT tokens
       localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
+
+      localStorage.setItem("username", email); // or data.username if backend returns it
+      localStorage.setItem("userEmail", email);
 
       router.push("/dashboard");
     } catch (error) {
