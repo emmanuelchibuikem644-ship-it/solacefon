@@ -16,12 +16,15 @@ export default function Login() {
   const API_BASE = "https://solace-2.onrender.com"; // Deployed backend
 
   // Redirect if already logged in
-  useEffect(() => {
-    const token = localStorage.getItem("access"); // ✅ fixed typo
-    if (token) {
-      router.push("/dashboard");
+ useEffect(() => {
+  const token = localStorage.getItem("access");
+  if (token) {
+    // ✅ Only redirect if current route is login
+    if (window.location.pathname === "/login") {
+      router.replace("/dashboard");
     }
-  }, [router]);
+  }
+}, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
