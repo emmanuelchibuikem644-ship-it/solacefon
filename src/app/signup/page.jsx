@@ -15,9 +15,8 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // ===============================
-  // 🔽 UPDATED: REAL BACKEND SIGNUP
-  // ===============================
+  const API_BASE = "https://solace-2.onrender.com"; // ✅ Deployed backend URL
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -32,18 +31,18 @@ export default function SignUp() {
     setLoading(true);
 
     try {
-   const res = await fetch("http://127.0.0.1:8000/api/auth/register/", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username: name, email, password }),
-});
+      const res = await fetch(`${API_BASE}/api/auth/register/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: name, email, password }),
+      });
 
       let data = {};
-try {
-  data = await res.json();
-} catch {
-  throw new Error("Invalid server response");
-}
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
+      }
 
       if (!res.ok) {
         // Backend validation error
@@ -58,7 +57,8 @@ try {
 
       // OPTIONAL: auto-login after signup
       if (data.access) {
-        localStorage.setItem("token", data.access);
+        localStorage.setItem("access", data.access);
+        localStorage.setItem("refresh", data.refresh);
       }
 
       // Redirect (YOUR LOGIC)

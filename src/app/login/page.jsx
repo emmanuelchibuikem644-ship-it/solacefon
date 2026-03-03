@@ -13,6 +13,8 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  const API_BASE = "https://solace-2.onrender.com"; // ✅ Deployed backend URL
+
   // ✅ Redirect if already logged in
   useEffect(() => {
     const token = localStorage.getItem("access");
@@ -33,7 +35,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+      const res = await fetch(`${API_BASE}/api/auth/login/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -54,6 +56,7 @@ export default function Login() {
         return;
       }
 
+      // ✅ Save JWT tokens
       localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
 
