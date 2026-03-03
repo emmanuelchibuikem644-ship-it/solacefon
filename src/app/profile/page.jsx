@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardNav from "@/Compunent/DashboardNav";
-import { Button } from "@/Compunent/ui/button"; // keep your button
+import { Button } from "@/Compunent/ui/button"; 
 import { UserCircle, Mail, Bell, Shield, Palette } from "lucide-react";
 
 const Profile = () => {
@@ -13,16 +13,26 @@ const Profile = () => {
     calmingAnimations: true,
   });
 
+  // ✅ Load logged-in user data from localStorage
+  useEffect(() => {
+    const storedName = localStorage.getItem("username");
+    const storedEmail = localStorage.getItem("userEmail");
+
+    if (storedName) setDisplayName(storedName);
+    if (storedEmail) setEmail(storedEmail);
+  }, []);
+
   const togglePref = (key) => {
     setPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Save Changes handler
   const handleSave = () => {
     alert(`Saved! Display Name: ${displayName}`);
+    // Optionally save updated name/email to localStorage
+    localStorage.setItem("username", displayName);
+    localStorage.setItem("userEmail", email);
   };
 
-  // Download user data
   const handleDownload = () => {
     const userData = { displayName, email, prefs };
     const blob = new Blob([JSON.stringify(userData, null, 2)], {
@@ -36,7 +46,6 @@ const Profile = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Delete account
   const handleDelete = () => {
     if (
       confirm(
@@ -50,6 +59,8 @@ const Profile = () => {
         privacyMode: false,
         calmingAnimations: false,
       });
+      localStorage.removeItem("username");
+      localStorage.removeItem("userEmail");
       alert("Account deleted.");
     }
   };
