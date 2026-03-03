@@ -15,12 +15,11 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const API_BASE = "https://solace-2.onrender.com"; // Deployed backend
+  const API_BASE = "https://solace-2.onrender.com";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Frontend validation
     const newErrors = {};
     if (!name.trim()) newErrors.name = "Please enter your name";
     if (!email.trim()) newErrors.email = "Please enter your email";
@@ -34,31 +33,26 @@ export default function SignUp() {
       const res = await fetch(`${API_BASE}/api/auth/register/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: name, email, password }),
+        body: JSON.stringify({ username: email, email, password }), // username = email for login
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Invalid server response");
-      }
+      const data = await res.json();
 
       if (!res.ok) {
-        // Backend validation error
         setErrors({
-          form:
-            data.email?.[0] ||
-            data.username?.[0] ||
-            "Account already exists",
+          form: data.email?.[0] || data.username?.[0] || "Account already exists",
         });
         return;
       }
 
-      // ✅ Redirect to login instead of dashboard to prevent loop
-      router.push("/login");
+      // Save tokens & user info
+      localStorage.setItem("access", data.access);
+      localStorage.setItem("refresh", data.refresh);
+      localStorage.setItem("username", data.user.username);
+      localStorage.setItem("email", data.user.email);
 
-    } catch (err) {
+      router.push("/dashboard");
+    } catch {
       setErrors({ form: "Network error. Try again later." });
     } finally {
       setLoading(false);
@@ -68,36 +62,20 @@ export default function SignUp() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-100 to-purple-200 flex items-center justify-center px-6 py-12 text-black">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <Heart className="h-7 w-7 text-purple-600" />
-            <span className="font-bold text-2xl text-gray-800">
-              Solace
-            </span>
+            <span className="font-bold text-2xl text-gray-800">Solace</span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Create your safe space
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Start your wellness journey today
-          </p>
+          <h1 className="text-2xl font-bold text-gray-800">Create your safe space</h1>
+          <p className="text-gray-500 mt-1">Start your wellness journey today</p>
         </div>
 
-        {/* Form */}
-        {errors.form && (
-          <p className="text-red-500 mb-4">{errors.form}</p>
-        )}
+        {errors.form && <p className="text-red-500 mb-4">{errors.form}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name */}
           <div>
-            <label
-              htmlFor="name"
-              className="block text-gray-700 font-medium mb-1"
-            >
-              Name
-            </label>
+            <label htmlFor="name" className="block text-gray-700 font-medium mb-1">Name</label>
             <input
               id="name"
               type="text"
@@ -106,21 +84,11 @@ export default function SignUp() {
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-            {errors.name && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.name}
-              </p>
-            )}
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
 
-          {/* Email */}
           <div>
-            <label
-              htmlFor="email"
-              className="block text-gray-700 font-medium mb-1"
-            >
-              Email
-            </label>
+            <label htmlFor="email" className="block text-gray-700 font-medium mb-1">Email</label>
             <input
               id="email"
               type="email"
@@ -129,21 +97,11 @@ export default function SignUp() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-            {errors.email && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.email}
-              </p>
-            )}
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
           </div>
 
-          {/* Password */}
           <div>
-            <label
-              htmlFor="password"
-              className="block text-gray-700 font-medium mb-1"
-            >
-              Password
-            </label>
+            <label htmlFor="password" className="block text-gray-700 font-medium mb-1">Password</label>
             <input
               id="password"
               type="password"
@@ -152,14 +110,9 @@ export default function SignUp() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-            {errors.password && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.password}
-              </p>
-            )}
+            {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
           </div>
 
-          {/* Remember */}
           <div className="flex items-center gap-2">
             <input
               id="remember"
@@ -168,42 +121,17 @@ export default function SignUp() {
               onChange={(e) => setRemember(e.target.checked)}
               className="h-4 w-4 text-purple-600 border-gray-300 rounded"
             />
-            <label
-              htmlFor="remember"
-              className="text-gray-700 text-sm cursor-pointer"
-            >
-              Remember me
-            </label>
+            <label htmlFor="remember" className="text-gray-700 text-sm cursor-pointer">Remember me</label>
           </div>
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            variant="hero"
-            className="w-full"
-            disabled={loading}
-          >
+          <Button type="submit" variant="hero" className="w-full" disabled={loading}>
             {loading ? "Signing Up..." : "Sign Up"}
           </Button>
         </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-4 my-6">
-          <div className="flex-1 h-px bg-gray-300" />
-          <span className="text-xs text-gray-500">or</span>
-          <div className="flex-1 h-px bg-gray-300" />
-        </div>
-
-        {/* Google Signup */}
-        <Button variant="outline" className="w-full rounded-xl gap-2">
-          Sign up with Google
-        </Button>
-
         <p className="text-center text-sm text-gray-500 mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-purple-600 hover:underline">
-            Log in
-          </Link>
+          <Link href="/login" className="text-purple-600 hover:underline">Log in</Link>
         </p>
       </div>
     </div>
