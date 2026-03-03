@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,7 +39,7 @@ export default function Login() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: email, // Django JWT uses username
+          username: email,
           password: password,
         }),
       });
@@ -55,7 +54,6 @@ export default function Login() {
         return;
       }
 
-      // ✅ Save JWT tokens
       localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
 
@@ -68,7 +66,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center px-6 py-12 text-black bg-white">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12 bg-white text-black">
       <div
         className="w-full max-w-md"
         style={{ animation: "slide-up 0.5s ease-out forwards" }}
@@ -76,21 +74,21 @@ export default function Login() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <Heart className="h-7 w-7 text-primary" />
-            <span className="font-display font-bold text-2xl text-foreground text-blac">
+            <Heart className="h-7 w-7 text-black" />
+            <span className="font-display font-bold text-2xl text-black">
               Solace
             </span>
           </Link>
-          <h1 className="text-2xl font-display font-bold text-foreground">
+          <h1 className="text-2xl font-display font-bold text-black">
             Welcome back
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1 text-black">
             We're glad you're here 💜
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-card rounded-2xl shadow-card border border-border/50 p-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-300 p-8">
           {errors.form && (
             <p className="text-red-500 mb-4">{errors.form}</p>
           )}
@@ -98,43 +96,41 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-foreground">
+              <label className="block text-sm font-medium text-black">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <input
                   type="email"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 w-full rounded-xl border border-border/50 p-2"
+                  className="pl-10 w-full rounded-xl border border-gray-300 p-2 text-black placeholder-gray-400"
                 />
               </div>
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
+                <p className="text-sm text-red-500">{errors.email}</p>
               )}
             </div>
 
             {/* Password */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-foreground">
+              <label className="block text-sm font-medium text-black">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <input
                   type="password"
                   placeholder="Your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 w-full rounded-xl border border-border/50 p-2"
+                  className="pl-10 w-full rounded-xl border border-gray-300 p-2 text-black placeholder-gray-400"
                 />
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">
-                  {errors.password}
-                </p>
+                <p className="text-sm text-red-500">{errors.password}</p>
               )}
             </div>
 
@@ -144,9 +140,9 @@ export default function Login() {
                 type="checkbox"
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
-                className="h-4 w-4 rounded"
+                className="h-4 w-4 rounded border-gray-500"
               />
-              <label className="text-sm cursor-pointer">
+              <label className="text-sm cursor-pointer text-black">
                 Remember me
               </label>
             </div>
@@ -155,18 +151,18 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary text-white py-2 rounded-xl font-bold hover:bg-primary-dark transition"
+              className="w-full bg-black text-white py-2 rounded-xl font-bold hover:bg-gray-800 transition"
             >
               {loading ? "Logging in..." : "Log in"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-sm mt-6 text-black">
           Don't have an account?{" "}
           <Link
             href="/signup"
-            className="text-primary hover:underline"
+            className="text-black font-semibold hover:underline"
           >
             Sign up free
           </Link>
@@ -175,4 +171,3 @@ export default function Login() {
     </div>
   );
 }
- 
