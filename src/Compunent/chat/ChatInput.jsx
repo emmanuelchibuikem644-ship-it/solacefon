@@ -1,82 +1,115 @@
- import { useEffect, useState, useRef } from "react";
-import MessageList from "./MessageList";
+"use client";
+
+import ChatInput from "@/Compunent/chat/ChatInput";
+import MessageList from "@/Compunent/chat/MessageList";
+import { useEffect, useRef, useState } from "react";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
   const [connected, setConnected] = useState(false);
-  const ws = useRef(null);
 
+  const socketRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  /* ================= SCROLL ================= */
   useEffect(() => {
-    ws.current = new WebSocket("ws://localhost:4000");
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    ws.current.onopen = () => {
+  /* ================= WEBSOCKET ================= */
+  useEffect(() => {
+
+    // ✅ CONNECT TO RENDER BACKEND
+    socketRef.current = new WebSocket("wss://chat-backend-10.onrender.com");
+
+    socketRef.current.onopen = () => {
       console.log("✅ WebSocket connected");
       setConnected(true);
     };
 
-    ws.current.onmessage = (event) => {
-      console.log("📩 WS RAW:", event.data); // IMPORTANT
-      const data = JSON.parse(event.data);
+    socketRef.current.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
 
-      if (data.type === "history") {
-        setMessages(data.messages);
-      } else {
-        setMessages((prev) => [...prev, data]);
+      console.log("📩 Message received:", msg);
+
+      // ===== CHAT HISTORY =====
+      if (msg.type === "history") {
+        const formatted = msg.messages.map((m) => ({
+          id: m._id,
+          sender: m.sender,
+          text: m.text,
+          time: new Date(m.time),
+        }));
+
+        setMessages(formatted);
+        return;
       }
+
+      // ===== WELCOME MESSAGE =====
+      if (msg.type === "welcome") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            sender: msg.sender,
+            text: msg.text,
+            time: new Date(msg.time),
+          },
+        ]);
+        return;
+      }
+
+      // ===== NORMAL MESSAGE =====
+      const formatted = {
+        id: msg.id,
+        sender: msg.sender,
+        text: msg.text,
+        time: new Date(msg.time),
+      };
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === formatted.id)) return prev;
+        return [...prev, formatted];
+      });
     };
 
-    ws.current.onclose = () => {
+    socketRef.current.onclose = () => {
       console.log("❌ WebSocket disconnected");
       setConnected(false);
     };
 
-    return () => ws.current.close();
-  }, []);
-
-  const sendMessage = () => {
-    if (!input || !connected) return;
-
-    const localMessage = {
-      id: Date.now(),
-      sender: "user",
-      text: input,
-      time: new Date().toISOString(),
+    socketRef.current.onerror = (err) => {
+      console.error("WebSocket error:", err);
     };
 
-    setMessages((prev) => [...prev, localMessage]);
+    return () => socketRef.current?.close();
+  }, []);
 
-    ws.current.send(
+  /* ================= SEND MESSAGE ================= */
+  const handleSend = (text) => {
+    if (!text || !connected) return;
+
+    socketRef.current.send(
       JSON.stringify({
         sender: "user",
-        text: input,
+        text,
       })
     );
-
-    setInput("");
   };
 
+  /* ================= UI ================= */
   return (
-    <div className="flex flex-col h-full bg-gray-100">
+    <div className="min-h-screen flex flex-col bg-gray-100 text-black">
+      
+      <header className="h-14 bg-white border-b flex items-center px-4 font-semibold">
+        Solace
+      </header>
+
       <MessageList messages={messages} />
 
-      <div className="p-4 flex gap-2 bg-white border-t">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 border rounded px-3 py-2"
-          placeholder="Type your message…"
-        />
-        <button
-          onClick={sendMessage}
-          disabled={!connected}
-          className={`px-4 py-2 rounded text-white ${
-            connected ? "bg-blue-600" : "bg-gray-400"
-          }`}
-        >
-          Send
-        </button>
-      </div>
+      <div ref={messagesEndRef} />
+
+      <ChatInput onSend={handleSend} connected={connected} />
     </div>
   );
 }

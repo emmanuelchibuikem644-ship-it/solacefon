@@ -1,30 +1,25 @@
 require("dotenv").config();
 const WebSocket = require("ws");
 const mongoose = require("mongoose");
-const OpenAI = require("openai");
+const axios = require("axios");
 
-/* ================= SAFETY CHECK ================= */
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ OPENAI_API_KEY is missing. Check your .env file.");
+/* ================= ENV CHECK ================= */
+if (!process.env.OPENROUTER_API_KEY) {
+  console.error("❌ OPENROUTER_API_KEY missing");
   process.exit(1);
 }
 
 if (!process.env.MONGO_URI) {
-  console.error("❌ MONGO_URI is missing. Check your .env file.");
+  console.error("❌ MONGO_URI missing");
   process.exit(1);
 }
-
-/* ================= OPENAI ================= */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 /* ================= MONGODB ================= */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
+    console.error("❌ MongoDB error:", err);
     process.exit(1);
   });
 
@@ -36,8 +31,46 @@ const messageSchema = new mongoose.Schema({
 
 const Message = mongoose.model("Message", messageSchema);
 
+/* ================= AI FUNCTION ================= */
+async function getAIReply(userText) {
+  try {
+    const res = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "meta-llama/llama-3-8b-instruct",
+        messages: [
+          {
+            role: "system",
+            content: `
+You are a non-clinical mental wellness chatbot.
+You are NOT a doctor.
+Do NOT diagnose or treat mental illness.
+Respond with empathy, validation, and gentle reflection.
+Encourage healthy thinking and emotional expression.
+If distress seems severe, suggest trusted human support.
+`,
+          },
+          { role: "user", content: userText },
+        ],
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return res.data.choices[0].message.content;
+  } catch (err) {
+    console.error("❌ OpenRouter error:", err.response?.data || err.message);
+    return "I’m here with you, but I’m having trouble responding right now.";
+  }
+}
+
 /* ================= WEBSOCKET ================= */
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 const wss = new WebSocket.Server({ port: PORT });
 
 console.log(`✅ WebSocket server running on port ${PORT}`);
@@ -45,83 +78,66 @@ console.log(`✅ WebSocket server running on port ${PORT}`);
 wss.on("connection", async (ws) => {
   console.log("🔌 Client connected");
 
-  // Send chat history
+  // ✅ SEND HISTORY FIRST
   const history = await Message.find().sort({ time: 1 }).limit(50);
   ws.send(JSON.stringify({ type: "history", messages: history }));
+
+  // ✅ SEND WELCOME ONLY IF CHAT IS EMPTY
+  if (history.length === 0) {
+    const welcomeText =
+      "Hi 👋 I’m here to listen. How are you feeling today?";
+
+    const welcomeMsg = await Message.create({
+      sender: "ai",
+      text: welcomeText,
+    });
+
+    ws.send(
+      JSON.stringify({
+        id: welcomeMsg._id,
+        sender: "ai",
+        text: welcomeMsg.text,
+        time: welcomeMsg.time,
+      })
+    );
+  }
 
   ws.on("message", async (data) => {
     try {
       const userData = JSON.parse(data.toString());
       if (!userData.text) return;
 
-      /* ===== SAVE USER MESSAGE ===== */
-      const savedUserMsg = await Message.create({
+      const savedUser = await Message.create({
         sender: "user",
         text: userData.text,
       });
 
       broadcast({
-        id: savedUserMsg._id,
+        id: savedUser._id,
         sender: "user",
-        text: savedUserMsg.text,
-        time: savedUserMsg.time,
+        text: savedUser.text,
+        time: savedUser.time,
       });
 
-      /* ===== OPENAI RESPONSE ===== */
-      let aiText = "I'm here with you. Please tell me more.";
+      const aiText = await getAIReply(userData.text);
 
-      try {
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: `
-You are a mental wellness support chatbot.
-You are NOT a medical professional.
-Do NOT diagnose or treat mental illness.
-Offer empathy, validation, reflection, and gentle guidance.
-Encourage healthy coping, emotional expression, and self-awareness.
-If distress is severe, suggest reaching trusted people or professionals.
-Never be judgmental.
-`,
-            },
-            {
-              role: "user",
-              content: userData.text,
-            },
-          ],
-          temperature: 0.7,
-        });
-
-        aiText = completion.choices[0].message.content;
-      } catch (aiError) {
-        console.error("❌ OpenAI error:", aiError.message);
-        aiText =
-          "Sorry, I'm having trouble responding right now. Please try again.";
-      }
-
-      /* ===== SAVE AI MESSAGE ===== */
-      const savedAiMsg = await Message.create({
+      const savedAI = await Message.create({
         sender: "ai",
         text: aiText,
       });
 
       broadcast({
-        id: savedAiMsg._id,
+        id: savedAI._id,
         sender: "ai",
-        text: savedAiMsg.text,
-        time: savedAiMsg.time,
+        text: savedAI.text,
+        time: savedAI.time,
       });
-
     } catch (err) {
       console.error("❌ Message handling error:", err);
     }
   });
 
-  ws.on("close", () => {
-    console.log("❌ Client disconnected");
-  });
+  ws.on("close", () => console.log("❌ Client disconnected"));
 });
 
 /* ================= BROADCAST ================= */

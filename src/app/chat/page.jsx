@@ -6,66 +6,83 @@ import { useEffect, useRef, useState } from "react";
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
+
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // --- Scroll to bottom when messages update ---
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(scrollToBottom, [messages]);
-
+  /* ================= SCROLL ================= */
   useEffect(() => {
-    socketRef.current = new WebSocket("ws://localhost:4000");
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    socketRef.current.onopen = () => {
-      console.log("WebSocket connected");
+  /* ================= WEBSOCKET ================= */
+  useEffect(() => {
+    const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
+    if (!WS_URL) {
+      console.error("❌ NEXT_PUBLIC_WS_URL not set");
+      return;
+    }
+
+    const socket = new WebSocket(WS_URL);
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("✅ WebSocket connected");
       setConnected(true);
     };
 
-    socketRef.current.onmessage = (event) => {
+    socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
 
+      // ===== HISTORY =====
       if (msg.type === "history") {
         const formatted = msg.messages.map((m) => ({
           id: m._id,
           sender: m.sender,
           text: m.text,
-          time: new Date(m.time),
+          time: new Date(m.time).toISOString(),
         }));
         setMessages(formatted);
-      } else {
-        const formatted = {
-          id: msg.id,
-          sender: msg.sender,
-          text: msg.text,
-          time: new Date(msg.time),
-        };
-        setMessages((prev) => [...prev, formatted]);
+        return;
       }
+
+      // ===== SINGLE MESSAGE (ANTI-DUPLICATE) =====
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [
+          ...prev,
+          {
+            id: msg.id,
+            sender: msg.sender,
+            text: msg.text,
+            time: new Date(msg.time).toISOString(),
+          },
+        ];
+      });
     };
 
-    socketRef.current.onclose = () => {
-      console.log("WebSocket disconnected");
+    socket.onclose = () => {
+      console.log("❌ WebSocket disconnected");
       setConnected(false);
     };
 
-    return () => socketRef.current.close();
+    socket.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+
+    return () => socket.close();
   }, []);
 
+  /* ================= SEND ================= */
   const handleSend = (text) => {
-    if (!text) return;
+    if (!text || !connected) return;
 
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      const message = {
+    socketRef.current.send(
+      JSON.stringify({
         sender: "user",
         text,
-      };
-      socketRef.current.send(JSON.stringify(message));
-    } else {
-      console.error("WebSocket not connected");
-    }
+      })
+    );
   };
 
   return (
@@ -75,7 +92,6 @@ export default function ChatPage() {
       </header>
 
       <MessageList messages={messages} />
-
       <div ref={messagesEndRef} />
 
       <ChatInput onSend={handleSend} connected={connected} />
