@@ -1,13 +1,76 @@
 "use client";
-import ChatInput from "@/Compunent/chat/ChatInput";
-import MessageList from "@/Compunent/chat/MessageList";
+
 import { useEffect, useRef, useState } from "react";
 
+/* ================= CHAT INPUT COMPONENT ================= */
+function ChatInput({ onSend }) {
+  const [text, setText] = useState("");
+
+  const handleSendClick = () => {
+    if (!text.trim()) return;
+    onSend(text);
+    setText("");
+  };
+
+  const handleEnter = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSendClick();
+    }
+  };
+
+  return (
+    <div className="p-4 bg-white flex gap-2 border-t">
+      <input
+        type="text"
+        className="flex-1 border rounded px-3 py-2"
+        placeholder="Type a message..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleEnter}
+      />
+      <button
+        onClick={handleSendClick}
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        Send
+      </button>
+    </div>
+  );
+}
+
+/* ================= MESSAGE LIST ================= */
+function MessageList({ messages }) {
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+      {messages.map((msg, index) => (
+        <div
+          key={index}
+          className={`flex ${
+            msg.sender === "user" ? "justify-end" : "justify-start"
+          }`}
+        >
+          <div
+            className={`px-4 py-2 rounded max-w-xs ${
+              msg.sender === "user" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
+          >
+            {msg.text}
+            {msg.emotion && (
+              <div className="text-xs text-gray-500 mt-1">
+                Emotion: {msg.emotion}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ================= MAIN CHAT PAGE ================= */
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
-  const [connected, setConnected] = useState(false);
-
-  const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   /* ================= SCROLL ================= */
@@ -15,86 +78,52 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ================= WEBSOCKET ================= */
-  useEffect(() => {
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
-    if (!WS_URL) {
-      console.error("❌ NEXT_PUBLIC_WS_URL not set");
-      return;
-    }
+  /* ================= SEND MESSAGE ================= */
+  const handleSend = async (text) => {
+    if (!text.trim()) return;
 
-    const socket = new WebSocket(WS_URL);
-    socketRef.current = socket;
+    // 1️⃣ Add user's message to chat
+    setMessages((prev) => [
+      ...prev,
+      { sender: "user", text: text },
+    ]);
 
-    socket.onopen = () => {
-      console.log("✅ WebSocket connected");
-      setConnected(true);
-    };
-
-    socket.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-
-      // ===== HISTORY =====
-      if (msg.type === "history") {
-        const formatted = msg.messages.map((m) => ({
-          id: m._id,
-          sender: m.sender,
-          text: m.text,
-          time: new Date(m.time).toISOString(),
-        }));
-        setMessages(formatted);
-        return;
-      }
-
-      // ===== SINGLE MESSAGE (ANTI-DUPLICATE) =====
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [
-          ...prev,
-          {
-            id: msg.id,
-            sender: msg.sender,
-            text: msg.text,
-            time: new Date(msg.time).toISOString(),
-          },
-        ];
+    try {
+      // 2️⃣ Send to Django API
+      const res = await fetch("http://127.0.0.1:8000/api/chat/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: text }),
       });
-    };
 
-    socket.onclose = () => {
-      console.log("❌ WebSocket disconnected");
-      setConnected(false);
-    };
+      const data = await res.json();
 
-    socket.onerror = (err) => {
-      console.error("WebSocket error:", err);
-    };
-
-    return () => socket.close();
-  }, []);
-
-  /* ================= SEND ================= */
-  const handleSend = (text) => {
-    if (!text || !connected) return;
-
-    socketRef.current.send(
-      JSON.stringify({
-        sender: "user",
-        text,
-      })
-    );
+      // 3️⃣ Add bot response to chat
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: data.response, emotion: data.emotion },
+      ]);
+    } catch (err) {
+      console.error("Error sending message:", err);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: "Sorry, something went wrong." },
+      ]);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 text-black">
       <header className="h-14 bg-white border-b flex items-center px-4 font-semibold">
-        Solace
+        Solace AI Chat
       </header>
 
       <MessageList messages={messages} />
       <div ref={messagesEndRef} />
 
-      <ChatInput onSend={handleSend} connected={connected} />
+      <ChatInput onSend={handleSend} />
     </div>
   );
 }
