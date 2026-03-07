@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+const API_BASE = "https://solace-2.onrender.com";
+
 /* ================= CHAT INPUT COMPONENT ================= */
 function ChatInput({ onSend }) {
   const [text, setText] = useState("");
@@ -52,10 +54,13 @@ function MessageList({ messages }) {
         >
           <div
             className={`px-4 py-2 rounded max-w-xs ${
-              msg.sender === "user" ? "bg-blue-600 text-white" : "bg-gray-200"
+              msg.sender === "user"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-black"
             }`}
           >
             {msg.text}
+
             {msg.emotion && (
               <div className="text-xs text-gray-500 mt-1">
                 Emotion: {msg.emotion}
@@ -73,7 +78,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  /* ================= SCROLL ================= */
+  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -82,31 +87,37 @@ export default function ChatPage() {
   const handleSend = async (text) => {
     if (!text.trim()) return;
 
-    // 1️⃣ Add user's message to chat
-    setMessages((prev) => [
-      ...prev,
-      { sender: "user", text: text },
-    ]);
+    // 1️⃣ Add user's message
+    setMessages((prev) => [...prev, { sender: "user", text: text }]);
 
     try {
-      // 2️⃣ Send to Django API
-      const res = await fetch("http://127.0.0.1:8000/api/chat/", {
+      const token = localStorage.getItem("access");
+
+      const res = await fetch(`${API_BASE}/api/chat/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // send user token
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+        }),
       });
 
       const data = await res.json();
 
-      // 3️⃣ Add bot response to chat
+      // 2️⃣ Add bot response
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: data.response, emotion: data.emotion },
+        {
+          sender: "bot",
+          text: data.response || "No response received.",
+          emotion: data.emotion,
+        },
       ]);
     } catch (err) {
       console.error("Error sending message:", err);
+
       setMessages((prev) => [
         ...prev,
         { sender: "bot", text: "Sorry, something went wrong." },
@@ -116,13 +127,16 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 text-black">
+      {/* HEADER */}
       <header className="h-14 bg-white border-b flex items-center px-4 font-semibold">
         Solace AI Chat
       </header>
 
+      {/* MESSAGES */}
       <MessageList messages={messages} />
       <div ref={messagesEndRef} />
 
+      {/* INPUT */}
       <ChatInput onSend={handleSend} />
     </div>
   );
