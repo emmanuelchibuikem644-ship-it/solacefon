@@ -60,7 +60,6 @@ function MessageList({ messages }) {
             }`}
           >
             {msg.text}
-
             {msg.emotion && (
               <div className="text-xs text-gray-500 mt-1">
                 Emotion: {msg.emotion}
@@ -78,45 +77,45 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ================= SEND MESSAGE ================= */
   const handleSend = async (text) => {
     if (!text.trim()) return;
 
-    // 1️⃣ Add user's message
-    setMessages((prev) => [...prev, { sender: "user", text: text }]);
+    console.log("User message:", text);
+
+    setMessages((prev) => [...prev, { sender: "user", text }]);
 
     try {
       const token = localStorage.getItem("access");
+      console.log("JWT Token:", token);
 
       const res = await fetch(`${API_BASE}/api/chat/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // send user token
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          message: text,
-        }),
+        body: JSON.stringify({ message: text }),
       });
 
-      const data = await res.json();
+      console.log("Response status:", res.status);
 
-      // 2️⃣ Add bot response
+      const data = await res.json();
+      console.log("API response:", data);
+
       setMessages((prev) => [
         ...prev,
         {
           sender: "bot",
-          text: data.response || "No response received.",
+          text: data.response || data.reply || "No response from AI.",
           emotion: data.emotion,
         },
       ]);
     } catch (err) {
-      console.error("Error sending message:", err);
+      console.error("Chat error:", err);
 
       setMessages((prev) => [
         ...prev,
@@ -127,17 +126,14 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 text-black">
-      {/* HEADER */}
       <header className="h-14 bg-white border-b flex items-center px-4 font-semibold">
         Solace AI Chat
       </header>
 
-      {/* MESSAGES */}
       <MessageList messages={messages} />
       <div ref={messagesEndRef} />
 
-      {/* INPUT */}
       <ChatInput onSend={handleSend} />
     </div>
   );
-}
+} 
