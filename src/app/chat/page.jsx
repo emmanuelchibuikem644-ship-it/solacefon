@@ -2,37 +2,32 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const API_BASE = "https://solace-2.onrender.com";
-
-/* ================= CHAT INPUT COMPONENT ================= */
+/* ================= CHAT INPUT ================= */
 function ChatInput({ onSend }) {
   const [text, setText] = useState("");
 
-  const handleSendClick = () => {
+  const handleSend = () => {
     if (!text.trim()) return;
     onSend(text);
     setText("");
   };
 
-  const handleEnter = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSendClick();
-    }
+  const handleKey = (e) => {
+    if (e.key === "Enter") handleSend();
   };
 
   return (
-    <div className="p-4 bg-white flex gap-2 border-t">
+    <div className="p-4 bg-white border-t flex gap-2">
       <input
-        type="text"
         className="flex-1 border rounded px-3 py-2"
-        placeholder="Type a message..."
+        placeholder="Type your message..."
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleEnter}
+        onKeyDown={handleKey}
       />
+
       <button
-        onClick={handleSendClick}
+        onClick={handleSend}
         className="bg-blue-600 text-white px-4 py-2 rounded"
       >
         Send
@@ -44,25 +39,32 @@ function ChatInput({ onSend }) {
 /* ================= MESSAGE LIST ================= */
 function MessageList({ messages }) {
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
-      {messages.map((msg, index) => (
+    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {messages.map((msg, i) => (
         <div
-          key={index}
+          key={i}
           className={`flex ${
             msg.sender === "user" ? "justify-end" : "justify-start"
           }`}
         >
           <div
-            className={`px-4 py-2 rounded max-w-xs ${
+            className={`px-4 py-2 rounded-lg max-w-xs ${
               msg.sender === "user"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-black"
             }`}
           >
             {msg.text}
+
             {msg.emotion && (
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs mt-1 text-gray-500">
                 Emotion: {msg.emotion}
+              </div>
+            )}
+
+            {msg.is_safety_alert && (
+              <div className="text-xs text-red-600 mt-1">
+                ⚠️ Safety Alert
               </div>
             )}
           </div>
@@ -72,68 +74,81 @@ function MessageList({ messages }) {
   );
 }
 
-/* ================= MAIN CHAT PAGE ================= */
+/* ================= MAIN PAGE ================= */
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
-  const messagesEndRef = useRef(null);
+  const [typing, setTyping] = useState(false);
+  const endRef = useRef(null);
 
+  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  /* ================= SEND MESSAGE ================= */
   const handleSend = async (text) => {
     if (!text.trim()) return;
 
-    console.log("User message:", text);
-
+    // Add user message
     setMessages((prev) => [...prev, { sender: "user", text }]);
 
     try {
-      const token = localStorage.getItem("access");
-      console.log("JWT Token:", token);
+      setTyping(true);
 
-      const res = await fetch(`${API_BASE}/api/chat/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: text }),
-      });
-
-      console.log("Response status:", res.status);
+      const res = await fetch(
+        "https://solace-2.onrender.com/api/chat/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: text,
+          }),
+        }
+      );
 
       const data = await res.json();
-      console.log("API response:", data);
 
       setMessages((prev) => [
         ...prev,
         {
           sender: "bot",
-          text: data.response || data.reply || "No response from AI.",
+          text: data.response,
           emotion: data.emotion,
+          is_safety_alert: data.is_safety_alert,
         },
       ]);
-    } catch (err) {
-      console.error("Chat error:", err);
+    } catch (error) {
+      console.error(error);
 
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Sorry, something went wrong." },
+        {
+          sender: "bot",
+          text: "Sorry, something went wrong.",
+        },
       ]);
+    } finally {
+      setTyping(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100 text-black">
+    <div className="min-h-screen flex flex-col bg-gray-100">
       <header className="h-14 bg-white border-b flex items-center px-4 font-semibold">
         Solace AI Chat
       </header>
 
       <MessageList messages={messages} />
-      <div ref={messagesEndRef} />
+
+      {typing && (
+        <div className="px-4 text-sm text-gray-500">Bot is typing...</div>
+      )}
+
+      <div ref={endRef} />
 
       <ChatInput onSend={handleSend} />
     </div>
   );
-} 
+}
