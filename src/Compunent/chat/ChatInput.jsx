@@ -1,5 +1,4 @@
 "use client";
-
 import ChatInput from "@/Compunent/chat/ChatInput";
 import MessageList from "@/Compunent/chat/MessageList";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +19,7 @@ export default function ChatPage() {
   useEffect(() => {
 
     // ✅ CONNECT TO RENDER BACKEND
-    socketRef.current = new WebSocket("wss://chat-backend-10.onrender.com");
+    socketRef.current = new WebSocket("wss://solace-2.onrender.com/ws/chat/");
 
     socketRef.current.onopen = () => {
       console.log("✅ WebSocket connected");
